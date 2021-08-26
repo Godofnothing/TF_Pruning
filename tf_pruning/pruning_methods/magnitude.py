@@ -7,7 +7,8 @@ from utils import tf_num_elements
 class L1PruningUnstructured(LayerPruningMethod):
 
     def prune_self(self, **kwargs):
-        if not isinstance(self.layer, PrunableLayer):
+        # escape if layer is not prunable of it is not a pruning epoch
+        if not isinstance(self.layer, PrunableLayer) or not self.pruning_schedule.is_prune_epoch():
             return
         
         for weight, mask in self.layer.get_weights_and_masks():

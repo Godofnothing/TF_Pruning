@@ -43,7 +43,6 @@ class PrunableConv(Conv, PrunableLayer):
       if self.prune_bias:
         weights_and_masks += [(self.bias, self.bias_mask)]
       return weights_and_masks
-
       
     def call(self, inputs):
       input_shape = inputs.shape

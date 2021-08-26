@@ -13,24 +13,20 @@ class PrunableDense(Dense, PrunableLayer):
     super(PrunableDense, self).build(input_shape)
     
     self.kernel_mask = self.add_weight(
-        'kernel',
+        'kernel_mask',
         shape=self.kernel.shape,
-        initializer=self.kernel_initializer,
-        regularizer=self.kernel_regularizer,
-        constraint=self.kernel_constraint,
-        dtype=self.dtype,
-        trainable=True
+        initializer='ones',
+        dtype=self.kernel.dtype,
+        trainable=False
     )
 
     if self.prune_bias:
-        self.bias = self.add_weight(
-          'bias',
-          shape=[self.units,],
-          initializer=self.bias_initializer,
-          regularizer=self.bias_regularizer,
-          constraint=self.bias_constraint,
-          dtype=self.dtype,
-          trainable=True
+        self.bias_mask = self.add_weight(
+          'bias_mask',
+          shape=self.bias.shape,
+          initializer='ones',
+          dtype=self.bias.dtype,
+          trainable=False
         )
 
   def call(self, inputs):

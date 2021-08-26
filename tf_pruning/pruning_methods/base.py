@@ -1,57 +1,49 @@
-import tensorflow as tf
-
 from abc import abstractmethod
+from types import MethodType
 
 from tf_pruning.layers.base import PrunableLayer
 from utils import has_sublayers
 
-class PruningWrapper:
+class PruningMethod:
+    '''
+    Base class for all pruning methods
+    '''
 
-    def __init__(
-        self, 
-        layer : tf.keras.layers.Layer,
-        pruning_schedule,
-        **kwargs
-    ):
-      self.layer = layer
-      self.pruning_schedule = pruning_schedule
-
-      # create hierarchy of sublayers
-      self.sublayers = []
-      if has_sublayers(self.layer):
-          for sublayer in self.layer.layers:
-            if isinstance(sublayer, PruningWrapper):
-              self.sublayers.append(sublayer)
+    def _init_sublayers(self, layer, **kwargs):
+      # init sublayers
+      layer.sublayers = []
+      if has_sublayers(layer):
+          for sublayer in layer.layers:
+            if hasattr(sublayer, 'pruning_wrapped'):
+              layer.sublayers.append(sublayer)
             else:
               if has_sublayers(sublayer) or isinstance(sublayer, PrunableLayer):
-                self.sublayers.append(self.__class__(sublayer, pruning_schedule, **kwargs))
+                layer.sublayers.append(self.__new__(self, sublayer, layer.pruning_schedule, **kwargs))
 
     def set_epoch(self, epoch):
         self.pruning_schedule.current_epoch = epoch
 
     @abstractmethod
     def prune(self, **kwargs):
-        pass
+      pass
 
     @abstractmethod
     def prune_self(self, **kwargs):
-        pass
+      pass
 
-    def __getattr__(self, name):
-        return getattr(self.layer, name)
+    def __new__(self, layer, pruning_schedule, *args, **kwargs):
+      layer.pruning_schedule = pruning_schedule
+      layer.set_epoch = MethodType(self.set_epoch, layer)
+      layer.prune = MethodType(self.prune, layer)
+      layer.prune_self = MethodType(self.prune_self, layer)
 
-    def __repr__(self):
-        return f"Wrapped_{self.layer.__class__.__name__}"
+      self._init_sublayers(self, layer, **kwargs)
 
+      layer.pruning_wrapped = True
 
-def make_wrapper_object(layer, pruning_schedule, *args, **kwargs):
-    wrapper_obj = PruningWrapper(layer, pruning_schedule, *args, **kwargs)
-    WrappedClass = type(f'Wrapped_{layer.__class__}', (layer.__class__, PruningWrapper, object), {})
-    wrapper_obj.__class__ = WrappedClass
-    return wrapper_obj
+      return layer
 
-
-class LayerPruningMethod:
+class LayerPruningMethod(PruningMethod):
     '''
     This family of pruning methods performs pruning layerwise. 
     Pruning is performed in different layers independently.
@@ -64,26 +56,13 @@ class LayerPruningMethod:
         for sublayer in self.sublayers:
             sublayer.prune(**kwargs)
         self.prune_self(**kwargs)
-
-    def __new__(self, layer, pruning_schedule, *args, **kwargs):
-        wrapper_obj = make_wrapper_object(layer, pruning_schedule, *args, **kwargs)
-
-        # add methods specific for LayerPruningMethod
-        wrapper_obj.prune_self = self.prune_self
-        wrapper_obj.prune = self.prune
-
-        return wrapper_obj
     
 
-class ModelPruningMethod:
+class ModelPruningMethod(PruningMethod):
     '''
     This family of pruning methods performs pruning along the whole model - 
     collects all weights in the sublayers of the given layer and then performs the pruning.
     '''
-
-    def prune_composite(self, prune_data):
-        pass
-
     def prune_self(self, **kwargs)->list:
         return []
 
@@ -101,13 +80,10 @@ class ModelPruningMethod:
         else:
             return prune_data
 
+    def prune_composite(self, prune_data):
+      pass
+
     def __new__(self, layer, pruning_schedule, *args, **kwargs):
-        wrapper_obj = make_wrapper_object(layer, pruning_schedule, *args, **kwargs)
-
-        # add methods specific for ModelPruningMethod
-        wrapper_obj.prune_composite = self.prune_composite
-        wrapper_obj.prune_self = self.prune_self
-        wrapper_obj.prune = self.prune
-
-        return wrapper_obj
-            
+      layer = super(ModelPruningMethod, self).__new__(self, layer, pruning_schedule, *args, **kwargs)
+      layer.prune_composite = MethodType(self.prune_composite, layer)
+      return layer

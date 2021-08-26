@@ -5,24 +5,24 @@ from abc import abstractmethod
 
 class PruningSchedule:
 
-    def __init__(self, begin_step, end_step, frequency, **kwargs):
-        self._validate_params(begin_step, end_step, frequency)
+    def __init__(self, begin_epoch, end_epoch, frequency, **kwargs):
+        self._validate_params(begin_epoch, end_epoch, frequency)
 
-        self.begin_step = begin_step
-        self.end_step = end_step
+        self.begin_epoch = begin_epoch
+        self.end_epoch = end_epoch
         self.frequency = frequency
         
-        self.current_step = 0
+        self.current_epoch = 0
 
-    def _validate_params(self, begin_step, end_step, frequency):
-        if begin_step < 0:
+    def _validate_params(self, begin_epoch, end_epoch, frequency):
+        if begin_epoch < 0:
             raise ValueError("begin step cannot be negative number")
 
         if frequency <= 0:
             raise ValueError('frequency has to be nonnegative')
 
-        if begin_step > end_step:
-            raise ValueError("begin_step cannot be larger than end step")
+        if begin_epoch > end_epoch:
+            raise ValueError("begin_epoch cannot be larger than end step")
 
     @staticmethod
     def _validate_sparsity(sparsity):
@@ -32,8 +32,8 @@ class PruningSchedule:
     def get_sparsity(self)->float:
         pass
 
-    def is_prune_step(self)->bool:
-        return self.current_step % self.frequency == 0
+    def is_prune_epoch(self)->bool:
+        return self.current_epoch % self.frequency == 0
 
 
 class ConstantSparsity(PruningSchedule):
@@ -42,19 +42,19 @@ class ConstantSparsity(PruningSchedule):
         self, 
         sparsity,
         frequency,
-        begin_step=0, 
-        end_step=-1
+        begin_epoch=0, 
+        end_epoch=-1
     ):
         '''
         args:
             sparsity: float 
         '''
-        super(ConstantSparsity, self).__init__(begin_step, end_step, frequency)
+        super(ConstantSparsity, self).__init__(begin_epoch, end_epoch, frequency)
         self._validate_sparsity(sparsity)
         self.sparsity = sparsity
 
     def get_sparsity(self)->float:
-        if self.current_step >= self.begin_step:
+        if self.current_epoch >= self.begin_epoch:
             return self.sparsity
         else:
             return 1.0
@@ -68,16 +68,16 @@ class PolynomialDecay(PruningSchedule):
         final_sparsity,
         frequency,
         power=2,
-        begin_step=0, 
-        end_step=-1
+        begin_epoch=0, 
+        end_epoch=-1
     ):
         '''
         args:
             sparsity: float 
         '''
-        super(PolynomialDecay, self).__init__(begin_step, end_step, frequency)
+        super(PolynomialDecay, self).__init__(begin_epoch, end_epoch, frequency)
 
-        assert end_step > begin_step, f"{self.__class__.__name__} requires end_step > begin_step"
+        assert end_epoch > begin_epoch, f"{self.__class__.__name__} requires end_epoch > begin_epoch"
 
         self._validate_sparsity(init_sparsity)
         self._validate_sparsity(final_sparsity)
@@ -86,11 +86,11 @@ class PolynomialDecay(PruningSchedule):
         self.power = power
 
     def get_sparsity(self)->float:
-        if self.current_step < self.begin_step:
+        if self.current_epoch < self.begin_epoch:
             return 1.0
 
-        cur_offset = min(self.current_step, self.end_step) - self.begin_step
-        end_offset = self.end_step - self.begin_step
+        cur_offset = min(self.current_epoch, self.end_epoch) - self.begin_epoch
+        end_offset = self.end_epoch - self.begin_epoch
 
         return (self.final_sparsity - self.init_sparsity) * (1 - cur_offset / end_offset) ** self.power + self.final_sparsity
 
@@ -102,30 +102,30 @@ class ExponentialDecay(PruningSchedule):
         init_sparsity,
         final_sparsity,
         frequency,
-        begin_step=0, 
-        end_step=-1
+        begin_epoch=0, 
+        end_epoch=-1
     ):
         '''
         args:
             init_sparsity: float 
             final_sparsity: float
         '''
-        super(ExponentialDecay, self).__init__(begin_step, end_step, frequency)
+        super(ExponentialDecay, self).__init__(begin_epoch, end_epoch, frequency)
 
-        assert end_step > begin_step, f"{self.__class__.__name__} requires end_step > begin_step"
+        assert end_epoch > begin_epoch, f"{self.__class__.__name__} requires end_epoch > begin_epoch"
 
         self._validate_sparsity(init_sparsity)
         self._validate_sparsity(final_sparsity)
         self.init_sparsity = init_sparsity
         self.final_sparsity = final_sparsity
         
-        self.exp_base = math.log(self.final_sparsity / self.init_sparsity) / (end_step - begin_step)
+        self.exp_base = math.log(self.final_sparsity / self.init_sparsity) / (end_epoch - begin_epoch)
 
     def get_sparsity(self)->float:
-        if self.current_step < self.begin_step:
+        if self.current_epoch < self.begin_epoch:
             return 1.0
 
-        cur_offset = min(self.current_step, self.end_step) - self.begin_step
+        cur_offset = min(self.current_epoch, self.end_epoch) - self.begin_epoch
 
         return self.init_sparsity * math.exp(cur_offset * self.exp_base)
     
@@ -137,29 +137,29 @@ class CosineAnnealingDecay(PruningSchedule):
         init_sparsity,
         final_sparsity,
         frequency,
-        begin_step=0, 
-        end_step=-1
+        begin_epoch=0, 
+        end_epoch=-1
     ):
         '''
         args:
             sparsity: float 
         '''
-        super(CosineAnnealingDecay, self).__init__(begin_step, end_step, frequency)
+        super(CosineAnnealingDecay, self).__init__(begin_epoch, end_epoch, frequency)
 
-        assert end_step > begin_step, f"{self.__class__.__name__} requires end_step > begin_step"
+        assert end_epoch > begin_epoch, f"{self.__class__.__name__} requires end_epoch > begin_epoch"
 
         self._validate_sparsity(init_sparsity)
         self._validate_sparsity(final_sparsity)
         self.init_sparsity = init_sparsity
         self.final_sparsity = final_sparsity
         
-        self.cosine_alpha = 2 * math.pi / (end_step - begin_step)
+        self.cosine_alpha = 2 * math.pi / (end_epoch - begin_epoch)
 
     def get_sparsity(self)->float:
-        if self.current_step < self.begin_step:
+        if self.current_epoch < self.begin_epoch:
             return 1.0
 
-        cur_offset = min(self.current_step, self.end_step) - self.begin_step
+        cur_offset = min(self.current_epoch, self.end_epoch) - self.begin_epoch
 
-        return 0.5 * self.init_sparsity * math.cos(self.cosine_alpha * cur_offset) + \
-            (self.final_sparsity + 0.5 * self.init_sparsity)
+        return 0.5 * (self.init_sparsity - self.final_sparsity) * (1 + math.cos(self.cosine_alpha * cur_offset)) + \
+            self.final_sparsity
