@@ -119,7 +119,7 @@ class ExponentialDecay(PruningSchedule):
         self.init_sparsity = init_sparsity
         self.final_sparsity = final_sparsity
         
-        self.exp_base = tf.math.log(self.final_sparsity / self.init_sparsity) / (end_step - begin_step)
+        self.exp_base = math.log(self.final_sparsity / self.init_sparsity) / (end_step - begin_step)
 
     def get_sparsity(self)->float:
         if self.current_step < self.begin_step:
@@ -127,7 +127,7 @@ class ExponentialDecay(PruningSchedule):
 
         cur_offset = min(self.current_step, self.end_step) - self.begin_step
 
-        return self.init_sparsity * tf.math.exp(cur_offset * self.exp_base)
+        return self.init_sparsity * math.exp(cur_offset * self.exp_base)
     
 
 class CosineAnnealingDecay(PruningSchedule):
@@ -161,5 +161,5 @@ class CosineAnnealingDecay(PruningSchedule):
 
         cur_offset = min(self.current_step, self.end_step) - self.begin_step
 
-        return 0.5 * self.init_sparsity * tf.math.cos(self.cosine_alpha * cur_offset) + \
+        return 0.5 * self.init_sparsity * math.cos(self.cosine_alpha * cur_offset) + \
             (self.final_sparsity + 0.5 * self.init_sparsity)

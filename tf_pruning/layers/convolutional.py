@@ -1,13 +1,12 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
-
 from tensorflow.python.keras.layers.convolutional import Conv
 from tensorflow.python.keras.utils import conv_utils
 
 from .base import PrunableLayer
 
 
-class PrunableConv(PrunableLayer):
+class PrunableConv(Conv, PrunableLayer):
 
     def __init__(self, rank, filters, kernel_size, prune_bias=False, **kwargs):
         super(PrunableConv, self).__init__(
@@ -19,7 +18,6 @@ class PrunableConv(PrunableLayer):
 
         self.prune_bias = prune_bias
 
-
     def build(self, input_shape):
         super(PrunableConv, self).build(input_shape)
 
@@ -28,7 +26,7 @@ class PrunableConv(PrunableLayer):
             shape=self.kernel.shape,
             initializer='ones',
             trainable=False,
-            dtype=self.type
+            dtype=self.kernel.dtype
         )
 
         if self.prune_bias:
@@ -37,7 +35,7 @@ class PrunableConv(PrunableLayer):
                 shape=self.bias.shape,
                 initializer='ones',
                 trainable=False,
-                dtype=self.type
+                dtype=self.bias.dtype
             )
 
     def get_weights_and_masks(self):
@@ -118,7 +116,7 @@ class PrunableConv3D(PrunableConv):
 
     def __init__(self, filters, kernel_size, prune_bias=False, **kwargs):
         super(PrunableConv2D, self).__init__(
-            rank=2,
+            rank=3,
             filters=filters, 
             kernel_size=kernel_size,
             prune_bias=prune_bias,
