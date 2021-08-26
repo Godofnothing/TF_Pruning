@@ -9,3 +9,4 @@ class PruningCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         self.model.set_epoch(epoch)
         self.model.prune()
+

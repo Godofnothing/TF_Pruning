@@ -1,4 +1,3 @@
-import tensorflow as tf
 import math
 
 from abc import abstractmethod
@@ -26,14 +25,14 @@ class PruningSchedule:
 
     @staticmethod
     def _validate_sparsity(sparsity):
-        assert 0.0 <= sparsity < 1.0, "sparsity has to lie in range [0, 1]"
+        assert 0.0 <= sparsity <= 1.0, "sparsity has to lie in range [0, 1]"
 
     @abstractmethod
     def get_sparsity(self)->float:
         pass
 
     def is_prune_epoch(self)->bool:
-        return self.current_epoch % self.frequency == 0
+        return (self.current_epoch - self.begin_epoch) % self.frequency == 0
 
 
 class ConstantSparsity(PruningSchedule):
@@ -153,7 +152,7 @@ class CosineAnnealingDecay(PruningSchedule):
         self.init_sparsity = init_sparsity
         self.final_sparsity = final_sparsity
         
-        self.cosine_alpha = 2 * math.pi / (end_epoch - begin_epoch)
+        self.cosine_alpha = math.pi / (end_epoch - begin_epoch)
 
     def get_sparsity(self)->float:
         if self.current_epoch < self.begin_epoch:
